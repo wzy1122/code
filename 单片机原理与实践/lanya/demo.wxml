@@ -1,0 +1,50 @@
+<!--pages/lanya/demo.wxml-->
+<view class="content">
+<text class="status">适配器状态：{{ status }}</text>
+<text class="sousuo">是否搜索：{{ sousuo }}</text>
+ 
+<!--<text class="msg">消息：{{ msg }}</text>-->
+<!--<text class="msg1">消息：{{ msg2 }}</text>
+  <text selectable='true'>设备返回：{{ jieshoudao }}</text>-->
+<view style='border:1px solid #ccc;white-space:normal;width:380px'>
+<text>请输入指令:</text><textarea bindinput='comandInput' maxlength='5000'></textarea>
+</view>
+<view class="section" style='margin-top:10px'>
+<button class="weui-btn" type="primary" bindtap="lanya8">发送消息</button>
+</view>
+-
+<view class="section" style='margin-top:10px;word-break: break-all;'>
+<text selectable='true'>发送的消息：{{ sendData }}</text>
+</view>
+ 
+ 
+<view class="section" style='margin-top:10px;word-break: break-all;color:red'>
+<text selectable='true'>设备返回：{{ jieshoudao }}</text>
+</view>
+ 
+<!--
+  <view class="section" style='margin-top:10px'>
+     
+    <picker bindchange="bindPickerChange" value="{{index}}" range="{{array}}">
+          <button  class="weui-btn" type="primary">选择数据长度{{array[index]}}</button>
+    </picker>
+  </view>-->
+ 
+<!--button type="primary" class="button" bindtap="lanya0">0断开蓝牙连接</button>-->
+</view>
+<block wx:if="{{devicesFlag}}">
+<view class="venues_list">
+<block wx:for="{{devices}}" wx:key="{{test}}">
+<view class="venues_item">
+<text class="status">设备名称:{{item.name}}</text>
+<text class="status">设备ID:{{item.deviceId}}</text>
+<text class="status">连接状态:{{connectedDeviceId == item.deviceId?"已连接":"未连接"}}</text>
+<view class="section">
+</view>
+<view class="section">
+<button type="warn" class="button" id="{{item.deviceId}}" bindtap="connectTO">连接</button>
+</view>
+</view>
+</block>
+</view>
+</block>
