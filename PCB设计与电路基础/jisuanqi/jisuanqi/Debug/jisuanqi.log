@@ -1,0 +1,6 @@
+﻿  jisuanqi.cpp
+C:\Users\12590\Desktop\单片机大作业\jisuanqi\jisuanqi\draw.h(19,29): warning C4244: “参数”: 从“double”转换到“float”，可能丢失数据
+C:\Users\12590\Desktop\单片机大作业\jisuanqi\jisuanqi\draw.h(20,29): warning C4244: “参数”: 从“double”转换到“float”，可能丢失数据
+C:\Users\12590\Desktop\单片机大作业\jisuanqi\jisuanqi\draw.h(141,13): warning C4244: “=”: 从“float”转换到“int”，可能丢失数据
+C:\Users\12590\Desktop\单片机大作业\jisuanqi\jisuanqi\draw.h(146,15): warning C4244: “=”: 从“float”转换到“int”，可能丢失数据
+  jisuanqi.vcxproj -> C:\Users\12590\Desktop\单片机大作业\jisuanqi\Debug\jisuanqi.exe
