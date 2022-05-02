@@ -1,0 +1,270 @@
+# matlab ditfft2.m
+function H=ditfft2(xn,M)
+%DIT-FFT快速傅里叶变换程序
+b=length(xn);                %调整补零
+if(b<2^M)
+    xn=[xn,zeros(1,(2^M)-b)];
+end
+b=length(xn);                %补零后xn长度
+A=zeros(1,b);                %xn转换数组
+N=2^M;                       %计算点数
+nxd=bin2dec(fliplr(dec2bin([1:N]-1,M)))+1;%倒序排列序号
+xn=xn(nxd);                               %倒序xn         
+for i=1:N                                 %N个1点DFT，xn本身，赋值到数组A
+   A(i)=xn(i);
+end
+for L = 1:M                               %DIT-FFT变换，M级蝶形变换
+    B = 2^(L-1);                          %两个输入数据距离
+    for J = 0:B-1                        %旋转因子处理
+        P=2^(M-L)*J;
+        for k=(J+1):2^L:N                %本次蝶形运算跨越时间
+            W=exp(-j*2*pi*P/N);           %对应旋转因子
+            T=A(k)+A(k+B)*W;              %进行蝶形运算
+            A(k+B)=A(k)-A(k+B)*W;
+            A(k)=T;
+        end
+    end
+end
+H=A;                                      %输出H为A
+
+# python
+import pyaudio
+import wave
+import numpy as np
+import numpy.fft as nf
+import scipy.io.wavfile as wf
+import matplotlib.pyplot as plt
+import python_speech_features as sf
+import matplotlib.pyplot as mp
+import os
+import hmmlearn.hmm as hl
+'''录音'''
+def LuYin(Time,filename):
+    # pyaudio库，用于录音，播放，生成wav文件
+    # 原始 PCM 的录音参数必须符合 8k/16k 采样率、16bit 位深、单声道，支持的格式有：pcm（不压缩）、wav（不压缩，pcm编码）、amr（压缩格式）。
+    # 这里采用的是采样率为16KHz、单声道、wav格式的录音参数
+    CHUNK = 1024              #wav文件是由若干个CHUNK组成的，CHUNK我们就理解成数据包或者数据片段。
+    FORMAT = pyaudio.paInt16  #这个参数后面写的pyaudio.paInt16表示我们使用量化位数 16位来进行录音。
+    CHANNELS = 1              #代表的是声道，这里使用的单声道。
+    RATE = 16000              # 采样率16k
+    RECORD_SECONDS = Time     #采样时间,录音时长上限为60s
+    WAVE_OUTPUT_FILENAME = filename   #输出文件名
+    p = pyaudio.PyAudio()
+    stream = p.open(format=FORMAT,
+                    channels=CHANNELS,
+                    rate=RATE,
+                    input=True,
+                    frames_per_buffer=CHUNK)
+    print("* 录音开始")
+    frames = []
+    for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
+        data = stream.read(CHUNK)
+        frames.append(data)
+    print("* 录音结束")
+    stream.stop_stream()
+    stream.close()
+    p.terminate()
+    wfs = wave.open(WAVE_OUTPUT_FILENAME, 'wb')
+    wfs.setnchannels(CHANNELS)
+    wfs.setsampwidth(p.get_sample_size(FORMAT))
+    wfs.setframerate(RATE)
+    wfs.writeframes(b''.join(frames))
+    wfs.close()
+# LuYin(2,"orange5.wav")
+'''画出语音信号的波形和频率分布'''
+def Draw(filename):
+    # 画出语音信号的波形和频率分布
+    sample_rate, sigs = wf.read(filename)
+    print(sample_rate)      # 采样率
+    print(sigs.shape)
+    sigs = sigs / (2**15) # 归一化
+    times = np.arange(len(sigs)) / sample_rate
+    freqs = nf.fftfreq(sigs.size, 1 / sample_rate)
+    ffts = nf.fft(sigs)
+    pows = np.abs(ffts)
+    plt.figure('Audio')
+    plt.subplot(121)
+    plt.title('Time Domain')
+    plt.xlabel('Time', fontsize=12)
+    plt.ylabel('Signal', fontsize=12)
+    plt.tick_params(labelsize=10)
+    plt.grid(linestyle=':')
+    plt.plot(times, sigs, c='dodgerblue', label='Signal')
+    plt.legend()
+    plt.subplot(122)
+    plt.title('Frequency Domain')
+    plt.xlabel('Frequency', fontsize=12)
+    plt.ylabel('Power', fontsize=12)
+    plt.tick_params(labelsize=10)
+    plt.grid(linestyle=':')
+    plt.plot(freqs[freqs >= 0], pows[freqs >= 0], c='orangered', label='Power')
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+'''绘制录音的MFCC特征'''
+def MFCCDraw(filename):
+    # 梅尔频率倒谱系数(MFCC)通过与声音内容密切相关的13个特殊频率所对应的能量分布，可以使用梅尔频率倒谱系数矩阵作为语音识别的特征。
+    # 基于隐马尔科夫模型进行模式识别，找到测试样本最匹配的声音模型，从而识别语音内容。
+    sample_rate, sigs = wf.read(filename)
+    mfcc = sf.mfcc(sigs, sample_rate)
+    mp.matshow(mfcc.T, cmap='gist_rainbow')
+    mp.show()
+# Draw("apple.wav")
+# MFCCDraw("apple.wav")
+
+'''​
+# 将training文件夹下的音频作为训练集，对testing文件夹下的音频文件作为测试集做分类
+# 1、读取training文件夹中的训练音频样本，每个音频对应一个mfcc矩阵，每个mfcc都有一个类别（apple）。
+# 2、把所有类别为apple的mfcc合并在一起，形成训练集。
+# 　　| mfcc |
+# 　　| mfcc | ------> apple
+# 　　| mfcc |
+# 　　.....
+# 　　由上述训练集样本可以训练一个用于匹配apple的HMM。
+# 3、训练5个HMM分别对应每个水果类别。 保存在列表中。apple、orange、lime、banana、peach
+# 4、读取testing文件夹中的测试样本，整理测试样本
+# 　　| mfcc | ------> apple
+# 　　| mfcc | ------> lime
+# ​
+# 5、针对每一个测试样本：
+# 　　1、分别使用5个HMM模型，对测试样本计算score得分。
+# 　　2、取5个模型中得分最高的模型所属类别作为预测类别。
+'''
+
+'''
+1. 读取training文件夹中的训练音频样本，每个音频对应一个mfcc矩阵，每个mfcc都有一个类别。
+'''
+def search_file(directory):
+    # 使传过来的directory匹配当前操作系统
+    # {'apple':[url, url, url ... ], 'banana':[...]}    
+    directory = os.path.normpath(directory)
+    objects = {}
+    # curdir：当前目录 
+    # subdirs: 当前目录下的所有子目录
+    # files: 当前目录下的所有文件名
+    for curdir, subdirs, files in os.walk(directory):
+        for file in files:
+            if file.endswith('.wav'):
+                label = curdir.split(os.path.sep)[-1]
+                if label not in objects:
+                    objects[label] = []
+                # 把路径添加到label对应的列表中
+                path = os.path.join(curdir, file)
+                objects[label].append(path)
+    return objects
+#读取训练集数据
+train_samples = search_file('training')
+# print(train_samples)
+
+
+'''
+2. 把所有类别为apple的mfcc合并在一起，形成训练集。
+    | mfcc |
+    | mfcc | -------> apple
+    | mfcc |
+    .....
+    由上述训练集样本可以训练一个用于匹配apple的HMM。
+'''
+train_x, train_y = [], []
+# 遍历5次  apple、orange、lime、banana、peach
+for label, filenames in train_samples.items():
+    mfccs = np.array([])
+    for filename in filenames:
+        sample_rate, sigs = wf.read(filename)
+        mfcc = sf.mfcc(sigs, sample_rate)
+        if len(mfccs)==0:
+            mfccs = mfcc
+        else:
+            mfccs = np.append(mfccs, mfcc, axis=0)
+    train_x.append(mfccs)
+    train_y.append(label)
+'''
+训练集的形式为:
+    train_x  train_y
+    ----------------
+    | mfcc |       |
+    | mfcc | apple |
+    | mfcc |       |
+    ----------------
+    | mfcc |        |
+    | mfcc | banana |
+    | mfcc |        |
+    -----------------
+    | mfcc |        |
+    | mfcc | lime   |
+    | mfcc |        |
+    -----------------
+'''
+models = {}
+for mfccs, label in zip(train_x, train_y):
+    model = hl.GaussianHMM(n_components=4, 
+        covariance_type='diag', n_iter=1000)
+    models[label] = model.fit(mfccs)
+# print(models)
+
+
+'''
+4. 读取testing文件夹中的测试样本，针对每一个测试样本：
+   1. 分别使用5个HMM模型，对测试样本计算score得分。
+   2. 取5个模型中得分最高的模型所属类别作为预测类别。
+'''
+#读取测试集数据
+test_samples = search_file('testing')
+# print(test_samples)
+test_x, test_y = [],[]
+for label, filenames in test_samples.items():
+    mfccs = np.array([])
+    for filename in filenames:
+        sample_rate, sigs = wf.read(filename)
+        mfcc = sf.mfcc(sigs, sample_rate)
+        if len(mfccs)==0:
+            mfccs = mfcc
+        else:
+            mfccs = np.append(mfccs, mfcc, axis=0)
+    test_x.append(mfccs)
+    test_y.append(label)
+# print(test_x)
+# print(test_y)
+
+'''测试集形式：
+    test_x  test_y
+    -----------------
+    | mfcc | apple  |
+    -----------------
+    | mfcc | banana |
+    -----------------
+    | mfcc | lime   |
+    -----------------
+'''
+pred_test_y = []
+for mfccs in test_x:
+# 判断mfccs与哪一个HMM模型更加匹配
+    best_score = None
+    best_label = None
+    for label, model in models.items():
+        score = model.score(mfccs)
+        # print(score)
+        if (best_score is None) or (best_score < score):
+            best_score = score
+            best_label = label
+    pred_test_y.append(best_label)
+print("真实种类为：")
+print(test_y)
+print("预测种类为：")
+print(pred_test_y)
+
+# matlab
+xn=[0 9 2 3];               %要转换的序列
+M=5;                        %转换级数
+B=fft(xn,32);               %matlab内置fft变换，用于对比
+subplot(2,1,1);             %内置fft变换图像
+[a1,b1]=size(B);
+o1=1:b1;                    %内置fft变换坐标
+stem(o1,abs(B),'.');        %绘图
+title('内置fft变换图像');
+H=ditfft2(xn,M);            %手工编写ditfft2函数
+subplot(2,1,2);             %绘制手工编写的fft图像
+[a1,b2]=size(H);
+o2=1:b2;                    %ditfft2变换坐标
+stem(o2,abs(H),'.');
+title('手写fft变换图像')
