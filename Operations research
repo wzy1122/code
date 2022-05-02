@@ -1,0 +1,332 @@
+# 附录A dataKTS.py（用于读取数据，提供函数)
+import numpy as np
+def getDataKTS():
+    f = open('Kapferer-Tailor-Shop_Multiplex_Social/Dataset/Kapferer-TailorShop_multiplex.edges')
+    lines = f.readlines()
+    nd = 39
+    nl = 4
+    A = np.zeros([nl, nd, nd])
+    for i in range(len(lines)):
+        line = lines[i].split('\n')[0].split(' ')
+        A[int(line[0]) - 1, int(line[1]) - 1, int(line[2]) - 1] = 1
+        A[int(line[0]) - 1, int(line[2]) - 1, int(line[1]) - 1] = 1
+    C = np.zeros([nd, nl, nl])
+    for i in range(nd):
+        for s in range(nl):
+            if np.sum(A[s, i, :]) > 0:
+                for r in range(nl - s - 1):
+                    if np.sum(A[s + r + 1, i, :]) > 0:
+                        C[i, s, s + r + 1] = 1
+                        C[i, s + r + 1, s] = C[i, s, s + r + 1]
+    return A, C
+def getModularityMultiplex(A, C):
+    mu = (np.sum(A) + np.sum(C)) / 2
+    print(2*mu)
+    nl = A.shape[0]
+    nd = C.shape[0]
+    # a=i+nd(r-1); b=j+nd(s-1)
+    B = np.zeros([nl * nd, nl * nd])
+    k = np.zeros([nd, nl])
+    for i in range(nd):
+        for r in range(nl):
+            k[i, r] = np.sum(A[r, i, :])
+    for i in range(nd):
+        for r in range(nl):
+            for j in range(nd):
+                for s in range(nl):
+                    if i == j:
+                        if r != s:
+                            B[i + nd * r, j + nd * s] = C[i, r, s] / (2 * mu)
+                        else:
+                            B[i + nd * r, j + nd * s] = - k[i, r] * k[j, r] /
+np.sum(A[r, :, :]) / (2 * mu)
+                    elif r == s:
+                        B[i + nd * r, j + nd * s] = (A[s, i, j] - k[i, r] * k[j, 
+r] / np.sum(A[r, :, :])) / (2 * mu)
+    return B
+if __name__ == '__main__':
+    A, C = getDataKTS()
+    # print(A, C)
+    print(np.sum(A[0]), np.sum(A[1]), np.sum(A[2]), np.sum(A[3]))
+    print(np.sum(A)/2)
+    print(np.sum(C))
+    B = getModularityMultiplex(A, C)
+    sum0=0
+    for i in range(B.shape[0]):
+        print(B[i,i])
+        sum0+=B[i,i]
+    print(sum0)
+    
+# 附录B P2.py（包含全部算法）
+import networkx as nx
+import numpy as np
+import copy
+from dataKTS import *
+def getModularityMultiplex(A, C):
+    mu = (np.sum(A) + np.sum(C)) / 2
+    print(2 * mu)
+    nl = A.shape[0]
+    nd = C.shape[0]
+    # a=i+nd(r-1); b=j+nd(s-1)
+    B = np.zeros([nl * nd, nl * nd])
+    k = np.zeros([nd, nl])
+    for i in range(nd):
+        for r in range(nl):
+            k[i, r] = np.sum(A[r, i, :])
+    for i in range(nd):
+        for r in range(nl):
+            for j in range(nd):
+                for s in range(nl):
+                    if i == j:
+                        if r != s:
+                            B[i + nd * r, j + nd * s] = C[i, r, s] / (2 * mu)
+                        else:
+                            B[i + nd * r, j + nd * s] = - k[i, r] * k[j, r] /
+np.sum(A[r, :, :]) / (2 * mu)
+                    elif r == s:
+                        B[i + nd * r, j + nd * s] = (A[s, i, j] - k[i, r] * k[j, 
+r] / np.sum(A[r, :, :])) / (2 * mu)
+    return B
+def spectral2(B):
+    """Subdivision"""
+    L = np.zeros(B.shape)
+    for i in range(L.shape[0]):
+        L[i, i] = np.sum(B[i, :])
+    W = L - B
+    communityList = [list(range(W.shape[0]))]
+    Q = 0
+    for i in range(len(communityList)):
+        Q += np.sum(B[communityList[i], :][:, communityList[i]])
+    currentQ = Q
+    currentBestCommunityList = copy.deepcopy(communityList)
+    Qs = [Q]
+    options = [communityList]
+    for n in range(W.shape[0]):
+        currentCommunityList = currentBestCommunityList
+        currentQ = -100000
+        for i in range(len(currentCommunityList)):
+            if len(currentCommunityList[i]) == 1:
+                continue
+            W0 = W[currentCommunityList[i], :][:, currentCommunityList[i]]
+            eVal, eVec = np.linalg.eig(W0)
+            rank = list(np.argsort(eVal))
+            for ind in range(len(rank)):
+                if np.abs(eVal[rank.index(ind)] - 0) < 0.00001:
+                    continue
+                else:
+                    val = eVal[rank.index(ind)]
+                    vec = eVec[:, rank.index(ind)].real
+            if np.all(vec > 0) or np.all(vec <= 0):
+                continue
+            comListPos = []
+            comListNeg = []
+            for j in range(len(rank)):
+                if vec[j] > 0:
+                    comListPos.append(currentCommunityList[i][j])
+                else:
+                    comListNeg.append(currentCommunityList[i][j])
+            newCommunityList = copy.deepcopy(currentCommunityList)
+            newCommunityList.remove(currentCommunityList[i])
+            newCommunityList.append(comListNeg)
+            newCommunityList.append(comListPos)
+            newQ = 0
+            for j in range(len(newCommunityList)):
+                newQ += np.sum(B[newCommunityList[j], :][:, newCommunityList[j]])
+            if newQ > currentQ:
+                currentBestCommunityList = copy.deepcopy(newCommunityList)
+                currentQ = newQ
+        if currentQ == -100000:
+            print('cannot subdivide at', n)
+            break
+        Qs.append(currentQ)
+        options.append(currentBestCommunityList)
+    # print(Qs,options)
+    print(Qs, options[np.argmax(Qs)])
+    return np.max(Qs), options[np.argmax(Qs)]
+def spectral3(B):
+    """K-means for every n communities"""
+    L = np.zeros(B.shape)
+    for i in range(L.shape[0]):
+        L[i, i] = np.sum(B[i, :])
+    W = L - B
+    Qs = []
+    options = []
+    for n in range(W.shape[0]):
+        print(n, 'of', W.shape[0])
+        currentQ = 0
+        currentCommunityList = []
+        nCom = n + 1
+        if nCom == 1:
+            currentCommunityList = [list(range(W.shape[0]))]
+            currentQ = 0
+            for i in range(len(currentCommunityList)):
+                currentQ += np.sum(B[currentCommunityList[i], :][:, currentCommunityList[i]])
+            Qs.append(currentQ)
+            options.append(currentCommunityList)
+            continue
+        elif nCom == W.shape[0]:
+            for i in range(W.shape[0]):
+                currentCommunityList.append([i])
+            currentQ = 0
+            for i in range(len(currentCommunityList)):
+                currentQ += np.sum(B[currentCommunityList[i], :][:, currentCommunityList[i]])
+            Qs.append(currentQ)
+            options.append(currentCommunityList)
+            continue
+        eVal, eVec = np.linalg.eig(W)
+        rank = list(np.argsort(eVal))
+        vec = np.zeros([W.shape[0], nCom])
+        cnt = 0
+        for ind in range(len(rank)):
+            if np.abs(eVal[rank.index(ind)] - 0) < 0.00001:
+                continue
+            else:
+                vec[:, cnt] += eVec[:, rank.index(ind)].real
+                cnt += 1
+                if cnt == nCom:
+                    break
+        # k-means
+        center = np.array(vec[0:nCom, :])
+        while True:
+            # initialize list
+            currentCommunityList = []
+            for j in range(nCom):
+                currentCommunityList.append([])
+            # update list
+            for j in range(W.shape[0]):
+                ds = []
+                for k in range(nCom):
+                    ds.append(np.linalg.norm(vec[j, :] - center[k, :]))
+                currentCommunityList[np.argmin(ds)].append(j)
+            # update center
+            dif = 0
+            for j in range(nCom):
+                for k in range(nCom):
+                    dif += np.abs(center[j, k] - np.mean(vec[currentCommunityList[j], k]))
+                    center[j, k] = np.mean(vec[currentCommunityList[j], k])
+            if dif < 0.01:
+                break
+        newQ = 0
+        for j in range(len(currentCommunityList)):
+            newQ += np.sum(B[currentCommunityList[j], :][:, currentCommunityList[j]])
+        Qs.append(newQ)
+        options.append(copy.deepcopy(currentCommunityList))
+        if n > 30:
+            break
+    print(np.max(Qs), options[np.argmax(Qs)])
+    return np.max(Qs), options[np.argmax(Qs)]
+def greedy(B):
+    L = np.zeros(B.shape)
+    for i in range(L.shape[0]):
+        L[i, i] = np.sum(B[i, :])
+    W = L - B
+    bestCommunityList = []
+    bestQ = 0
+    for i in range(B.shape[0]):
+        bestCommunityList.append([i])
+    for i in range(B.shape[0]):
+        bestQ += np.sum(B[bestCommunityList[i], :][:, bestCommunityList[i]])
+    for n in range(B.shape[0]):
+        print('Doing', n)
+        newBestQ = bestQ
+        newBestCommunityList = copy.deepcopy(bestCommunityList)
+        for a in range(len(bestCommunityList)):
+            for aa in range(len(bestCommunityList) - a - 1):
+                b = aa + a + 1
+                currentCommunityList = copy.deepcopy(bestCommunityList)
+                listA = list(bestCommunityList[a])
+                listB = list(bestCommunityList[b])
+                listAdd = list(listA) + list(listB)
+                currentCommunityList.remove(listA)
+                currentCommunityList.remove(listB)
+                currentCommunityList.append(listAdd)
+                currentQ = 0
+                for i in range(len(currentCommunityList)):
+                    currentQ += np.sum(B[currentCommunityList[i], :][:, currentCommunityList[i]])
+                     if currentQ > newBestQ:
+                    newBestQ = currentQ
+                    newBestCommunityList = copy.deepcopy(currentCommunityList)
+                print(a, b, currentQ, newBestQ)
+        if newBestQ > bestQ:
+            bestQ = newBestQ
+            bestCommunityList = copy.deepcopy(newBestCommunityList)
+            print(newBestQ)
+        else:
+            print(bestQ, bestCommunityList)
+            return bestQ, bestCommunityList
+def getNotIsolateList(A, C):
+    nl = A.shape[0]
+    nd = C.shape[0]
+    # a=i+nd(r-1); b=j+nd(s-1)
+    listAvailable = []
+    for i in range(nd):
+        for r in range(nl):
+            if np.sum(A[r, i, :]) + np.sum(C[i, r, :]) != 0:
+                listAvailable.append(i + nd * r)
+    listAvailable.sort()
+    return listAvailable
+A, C = getDataKTS()
+# A, C = getMultiplexMatrixSample1()
+B = getModularityMultiplex(A, C)
+realList = getNotIsolateList(A, C)
+print(np.sum(B), realList)
+Qm2, com2 = spectral2(B)
+Qm3, com3 = spectral3(B)
+# Qm4,com4=greedy(B)
+
+# 附录C 3.py（计算逐层模块度最大化）
+import numpy as np
+from P2 import *
+def getModularitySimple(A):
+    m = np.sum(A) / 2
+    nd = A.shape[0]
+    k = np.zeros(nd)
+    B = np.zeros([nd, nd])
+    for i in range(nd):
+        k[i] = np.sum(A[i, :])
+    for i in range(nd):
+        for j in range(nd):
+            B[i, j] = (A[i, j] - k[i] * k[j] / np.sum(A)) / (2 * m)
+    return B
+A, C = getDataKTS()
+nd=C.shape[0]
+nl=A.shape[0]
+mu=(np.sum(A)+np.sum(C))/2
+comLists=[]
+Q=0
+for n in range(nl):
+    B=getModularitySimple(A[n])
+    # qLayer,comLayer=spectral2(B)
+    # qLayer,comLayer=spectral3(B)
+    qLayer,comLayer=greedy(B)
+    Q+=qLayer*np.sum(A[n])/mu
+    for i in range(len(comLayer)):
+        oneList = []
+        for j in range(len(comLayer[i])):
+            oneList.append(comLayer[i][j]+n*nd)
+        comLists.append(oneList)
+print(Q,comLists)
+
+# 附录D 4.py（可视化函数）
+import matplotlib.pyplot as plt
+data=[[98, 20, 59, 126, 9, 120, 42, 122, 44, 83, 81, 48, 84, 123, 5, 51, 90, 12, 
+45, 6, 82, 4, 121, 43, 128, 11, 89, 125, 86, 8, 47, 50, 49, 88, 137, 119, 80, 
+41, 10, 2, 117, 78, 0, 39, 3, 93, 132, 15, 54, 118, 79, 1, 40], [62, 56, 134, 
+124, 7, 46, 133, 55, 16, 94], [25, 64, 129, 153, 114, 75, 36, 154, 115, 107, 68, 
+146, 70, 109, 31, 148, 76, 37, 29, 116, 155, 38, 150, 111, 72, 33, 28, 106, 113, 
+35, 112, 151, 34, 149, 110, 32, 73, 141, 152, 74, 77, 71, 147, 69, 30, 108, 127, 
+130, 52, 91, 13, 17, 104, 99, 138, 21, 140, 23, 101, 145, 67, 139, 131, 60, 53, 
+61, 26, 100, 22, 92, 14, 65, 135, 96, 18, 57, 66, 27, 105, 144, 136, 97, 19, 58, 
+102, 24, 63]]
+grop=[]
+for i in range(len(data)):
+    x=[]
+    y=[]
+    for j in range(len(data[i])):
+        x.append(int(data[i][j]/39))
+        y.append(data[i][j]%39)
+    grop.append([x,y])
+for i in range(len(grop)):
+    plt.scatter(grop[i][0], grop[i][1], s=50, label='%s'%i , alpha=0.5)
+plt.legend(loc=0,ncol=2)
+plt.show()
