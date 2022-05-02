@@ -1,0 +1,39 @@
+<!--miniprogram/pages/words/words.wxml-->
+
+<view class="icon_style">题目录入{{time}}</view>
+<view class="main_body">
+<view class="flex_class">
+  <!-- <input placeholder="单元编号" bindinput="input_unit" value="{{unit}}"></input>
+  <input placeholder="主题号" bindinput="input_main_index" value="{{main_index}}"></input>
+  <input placeholder="小题号" bindinput="input_extra_index" value="{{extra_index}}"></input> -->
+  <input placeholder="单词" bindinput="input_word" value="{{word}}"></input>
+</view>
+  <!-- <textarea maxlength="-1" placeholder="题目描述" bindinput="input_description" value="{{description}}"></textarea>
+  <textarea maxlength="-1" placeholder="题干文本" bindinput="input_body" value="{{body}}"></textarea>
+  <textarea maxlength="-1" placeholder="答案文本" bindinput="input_answer" value="{{answer}}"></textarea>
+  <textarea maxlength="-1" placeholder="注释" bindinput="input_comment" value="{{comment}}"></textarea> -->
+  <view class="flex_class"><input placeholder="简单释义个数" bindinput="simple_description_num"></input></view>
+  <scroll-view class="scroll_class1" scroll-y>
+    <block wx:for="{{simple_description}}" wx:key="index" class="class1">
+      <textarea maxlength="-1" placeholder="简单释义{{index+1}}" 
+      bindinput="input_simple_description" data-no="{{index}}"></textarea>
+    </block>
+  </scroll-view>
+  <view class="flex_class"><input placeholder="英语释义个数" bindinput="english_description_num"></input></view>
+  <scroll-view class="scroll_class1" scroll-y>
+    <block wx:for="{{english_description}}" wx:key="index" class="class1">
+      <textarea maxlength="-1" placeholder="简单释义{{index+1}}" 
+      bindinput="input_english_description" data-no="{{index}}"></textarea>
+    </block>
+  </scroll-view>
+  <textarea placeholder="英文例句"></textarea>
+  <textarea placeholder="中文翻译"></textarea>
+  <text>混淆选项</text>
+  <input placeholder="答案" bindinput="inputanswer"></input>
+  <textarea placeholder="选项1" bindinput="inputchoice1"></textarea>
+  <textarea placeholder="选项2" bindinput="inputchoice2"></textarea>
+  <textarea placeholder="选项3" bindinput="inputchoice3"></textarea>
+  <textarea placeholder="选项4" bindinput="inputchoice4"></textarea>
+  <button bindtap="_add">添加</button>
+  <!-- <button bindtap="_get">查询/删除记录</button> -->
+</view>

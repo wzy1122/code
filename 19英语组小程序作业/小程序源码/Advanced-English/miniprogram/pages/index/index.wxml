@@ -1,0 +1,6 @@
+<!--miniprogram/pages/index/index.wxml-->
+<view class="class1">
+  <button bindtap="grammar" >录入语法题</button>
+  <button bindtap="words">录入单词</button>
+</view>
+

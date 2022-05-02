@@ -1,0 +1,26 @@
+<!--miniprogram/pages/find_delete.wxml-->
+<view class="icon_style">查询/删除记录{{time}}</view>
+<view class="main_body">
+<view class="flex_class2">
+  <input placeholder="请输入查询日期" value="{{time}}"></input>
+  <text>共{{num}}条,第{{cur+1}}条</text>
+</view>
+<view class="flex_class">
+  <input placeholder="单元编号" bindinput="input_unit" value="{{unit}}"></input>
+  <input placeholder="主题号" bindinput="input_main_index" value="{{main_index}}"></input>
+  <input placeholder="小题号" bindinput="input_extra_index" value="{{extra_index}}"></input>
+</view>
+  <textarea maxlength="-1" placeholder="题目描述" bindinput="input_description" value="{{description}}"></textarea>
+  <textarea maxlength="-1" placeholder="题干文本" bindinput="input_body" value="{{body}}"></textarea>
+  <textarea maxlength="-1" placeholder="答案文本" bindinput="input_answer" value="{{answer}}"></textarea>
+  <textarea maxlength="-1" placeholder="注释" bindinput="input_comment" value="{{comment}}"></textarea>
+<view class="button_class">
+  <button bindtap="_previous">上一项</button>
+  <button bindtap="_next">下一项</button>
+</view>
+<view class="button_class">
+  <button bindtap="_modify">修改</button>
+  <button bindtap="_delete">删除</button>
+</view>
+</view>
+

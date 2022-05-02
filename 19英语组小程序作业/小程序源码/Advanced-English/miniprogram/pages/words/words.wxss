@@ -1,0 +1,49 @@
+/* miniprogram/pages/home.wxss */
+.icon_style {
+  color: black;
+  font-size: medium;
+  align-self: center;
+}
+.text_class{
+  margin-left: 20rpx;
+  margin-bottom: 0rpx;
+}
+.flex_class{
+  display: flex;
+  flex-direction: row;
+}
+.main_body{
+  color: black;
+  background-color: white;
+}
+
+.flex_class input{
+  height: 30rpx;
+  margin-left: 20rpx;
+  margin-right: 20rpx;
+  margin-top: 20rpx;
+  background-color: ghostwhite;
+}
+
+.main_body textarea{
+  margin: 20rpx;
+  height: 150rpx;
+  width: 700rpx;
+  background-color: ghostwhite;
+}
+
+.main_body button {
+  margin-top: 20rpx;
+  color: green;
+}
+
+.class1{
+  border-bottom: 1px solid #EEE;
+  padding: 10px;
+  color: #666;
+  height: 100rpx;
+}
+
+.scroll_class1{
+  height: 300rpx;
+}

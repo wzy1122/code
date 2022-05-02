@@ -1,0 +1,62 @@
+/* miniprogram/pages/find_delete.wxss */
+.icon_style {
+  color: black;
+  font-size: medium;
+  align-self: center;
+}
+.text_class{
+  margin-left: 20rpx;
+  margin-bottom: 0rpx;
+}
+.flex_class{
+  display: flex;
+  flex-direction: row;
+}
+.main_body{
+  color: black;
+  background-color: white;
+}
+.main_body input{
+  margin-left: 20rpx;
+  margin-right: 20rpx;
+  margin-top: 20rpx;
+  background-color: ghostwhite;
+}
+.flex_class input{
+  margin-left: 20rpx;
+  margin-right: 20rpx;
+  margin-top: 20rpx;
+  background-color: ghostwhite;
+}
+.flex_class2{
+  display: flex;
+  flex-direction: row;
+}
+.flex_class2 text{
+  margin-left: 20rpx;
+  margin-right: 20rpx;
+  margin-top: 20rpx;
+  background-color: ghostwhite;
+  width:320rpx;
+}
+.main_body textarea{
+  margin: 20rpx;
+  height: 240rpx;
+  width: 700rpx;
+  background-color: ghostwhite;
+}
+
+.main_body button {
+  margin-top: 20rpx;
+  color: green;
+}
+.button_class{
+  display: flex;
+  flex-direction: row;
+}
+.button_class button{
+  color: green;
+}
+.button_class2 button{
+  color: red;
+}

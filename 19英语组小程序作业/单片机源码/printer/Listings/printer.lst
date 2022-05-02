@@ -1,0 +1,500 @@
+C51 COMPILER V9.59.0.0   PRINTER                                                           10/26/2020 15:26:26 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE PRINTER
+OBJECT MODULE PLACED IN .\Objects\printer.obj
+COMPILER INVOKED BY: D:\keil5\C51\BIN\C51.EXE printer.c LARGE OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listin
+                    -gs\printer.lst) TABS(2) OBJECT(.\Objects\printer.obj)
+
+line level    source
+
+   1          #include <STC12C5A60S2.H>
+   2          #include <stdio.h>
+   3          #include <string.h>
+   4          #include <vector>
+*** WARNING C318 IN LINE 4 OF printer.c: can't open file 'vector'
+   5          #define FOSC 11059200L
+   6          #define BAUD 9600
+   7          #define S2RI 0x01;   //串口2接收bit
+   8          #define S2TI 0x02;   //串口2发送bit
+   9          char a[101];int l=0;//输出汉字
+  10          int cnt,rec,cnt1,cnt2,cnt3,len;
+  11          unsigned int tmp,num;
+  12          int nums[10]={0Xc0,0xF9,0XA4,0XB0,0X99,0X92,0X82,0XF8,0X80,0X90},numm[5];
+  13          unsigned char rec2,sndflag=0,numflag=0;  //sndflag:是否向小程序返回打印机状态,numflag是否改变num
+  14          bit New_rec = 0, Send_ed = 1; 
+  15          void InitUart2()
+  16          {
+  17   1          S2CON=0x50; //串口2工作在方式1  10位异步收发 S2REN=1允许接收
+  18   1          AUXR|=0x14;
+  19   1          BRT=-(FOSC/32/BAUD);
+  20   1          S2CON|=S2TI;
+  21   1          IE2 =0x01;    //开串口2中断  ES2=1
+  22   1      }
+  23          //数码管显示
+  24          void Timer0Init(void)   //20微秒@11.0592MHz
+  25          {
+  26   1        AUXR |= 0x80;   //定时器时钟1T模式
+  27   1        TMOD &= 0xF0;   //设置定时器模式
+  28   1        TL0 = 0xAE;   //设置定时初值
+  29   1        TH0 = 0xFB;   //设置定时初值
+  30   1        TF0 = 0;    //清除TF0标志
+  31   1        TR0 = 1;    //定时器0开始计时
+  32   1        ET0=1;
+  33   1        EA=1;
+  34   1      }
+  35          void USART_Init()
+  36          {
+  37   1        PCON &= 0x7F;   //波特率不倍速 SMOD=0
+  38   1        SCON = 0x50;    //设置为方式1,8位数据,可变波特率,接收允许
+  39   1        AUXR |= 0x40;   //定时器1时钟为Fosc,即1T
+  40   1        TMOD = 0X20;    //定时器1:模式2,8位自动重装模式,用于产生波特率 
+  41   1        TL1 = 0XFD;       //设定定时初值，波特率设置为115200
+  42   1        TH1 = 0XFD;       //设定定时器重装值
+  43   1        TR1 = 1;      //启动定时器1
+  44   1        ES = 1;       //开串行中断
+  45   1        EA = 1;       //开总中断
+  46   1        TI=0;
+  47   1        //EA、ES置1后，若有串口接收或者发送，则进入执行串口中断服务程序void USART_Interrupt(void)  interrupt 4   
+  48   1      }
+  49          void Delay50ms()    //@11.0592MHz
+  50          {
+  51   1        unsigned char i, j, k;
+  52   1        i = 3;
+  53   1        j = 26;
+C51 COMPILER V9.59.0.0   PRINTER                                                           10/26/2020 15:26:26 PAGE 2   
+
+  54   1        k = 223;
+  55   1        do
+  56   1        {
+  57   2          do
+  58   2          {
+  59   3            while (--k);
+  60   3          } while (--j);
+  61   2        } while (--i);
+  62   1      }
+  63          void Delay20us()    //@11.0592MHz
+  64          {
+  65   1        unsigned char i;
+  66   1        i = 52;
+  67   1        while (--i);
+  68   1      }
+  69          void Pause()//        Pause();
+  70          {
+  71   1        while(!TI){;}
+  72   1        TI=0;
+  73   1      }
+  74          void Init(void)  //设置行间距为默认值 6 X 0.125mm  ESC2
+  75          {
+  76   1        SBUF=0x1b;Pause();SBUF=0x32;Pause();
+  77   1      }
+  78          void print(void)  //打印并走纸（1个单位行间距）
+  79          {
+  80   1        SBUF=0x0a;Pause();
+  81   1      }
+  82          void printhz(void)  //输出汉字
+  83          {
+  84   1        l=0;
+  85   1        while(a[l]){
+  86   2          SBUF=a[l++];Pause();
+  87   2          }
+  88   1        memset(a,0,sizeof(a));
+  89   1        
+  90   1      }
+  91          void InitPrinter(void)  //初始化（清除打印缓冲区中数据，复位打印机配置）
+  92          {
+  93   1        SBUF=0x1b;Pause();SBUF=0x40;Pause();
+  94   1      }
+  95          void setLine(int n)  //设置行间距为 n x 0.125mm  (默认n=6) 255
+  96          {
+  97   1        SBUF=0x1b;Pause();SBUF=0x33;Pause();SBUF=n;Pause();
+  98   1      }// n为十六进制数
+  99          void setMode(int n,int m)  //设置打印模式 60:倍高倍宽 40：倍宽 20：倍高
+ 100          {
+ 101   1        int ctl=0;
+ 102   1        if(n==1) ctl+=20;if(m==1) ctl+=40;
+ 103   1        SBUF=0x1b;Pause();SBUF=0x21;Pause();SBUF=ctl;Pause();
+ 104   1      }
+ 105          void setLeft(int m,int n)
+ 106          {
+ 107   1        SBUF=0x1b;Pause();SBUF=0x24;Pause();SBUF=m;Pause();SBUF=n;Pause();
+ 108   1      }//仅适用于字符 设置左边距 m:255,n:1(m=n=0)(m+n x 256) x 0.125mm不要过大
+ 109           // n,m为十六进制数
+ 110          void tranStatus(void)//(试验）
+ 111          {
+ 112   1        SBUF=0x1b;Pause();SBUF=0x76;Pause();SBUF=0x00;Pause();
+ 113   1      }
+ 114          void setAline(int n)//(试验）
+ 115          {
+C51 COMPILER V9.59.0.0   PRINTER                                                           10/26/2020 15:26:26 PAGE 3   
+
+ 116   1        SBUF=0x1b;Pause();SBUF=0x61;Pause();SBUF=n;Pause();
+ 117   1      }
+ 118          void setEnglishLine(int n)//设置西文右侧字符间距为n x 0.125mm 仅适用于西文
+ 119          {
+ 120   1        SBUF=0x1b;Pause();SBUF=0x20;Pause();SBUF=n;Pause();
+ 121   1      }
+ 122          void setAlign(int n) //设置字符对齐方式 n:0左 1:中 2:右
+ 123          {
+ 124   1        SBUF=0x1b;Pause();SBUF=0x61;Pause();SBUF=n;Pause();
+ 125   1      }
+ 126          void setPicLeft(int m,int n)//m:255,n:1 设置图片左边距为(m+n*256)点
+ 127          {
+ 128   1        SBUF=0x1b;Pause();SBUF=0x50;Pause();SBUF=m;Pause();SBUF=n;Pause();
+ 129   1      }
+ 130          void setPicMode(void)
+ 131          {
+ 132   1        SBUF=0x1b;Pause();SBUF=0x2a;Pause();
+ 133   1      }//m:0,1,32,33:点图方式 水平方向点数:nl+nh*256(nl:255,nh:1)
+ 134          //d1..k:255 d[i]=0/1: 打印/不打印 点数超过一行，超过最大点数的部分倍忽略
+ 135          //指令结束后必须调用PrintPic()来打印图片
+ 136          void PrintPic(void)
+ 137          {
+ 138   1        SBUF=0x1b;Pause();SBUF=0x4a;Pause();SBUF=0x00;Pause();
+ 139   1      }
+ 140          void PrintHRI(int n)//n:0不打印 1条形码上方 2下方 3上下方
+ 141          {
+ 142   1        SBUF=0x1d;Pause();SBUF=0x48;Pause();SBUF=n;Pause();
+ 143   1      }
+ 144          void setChinesemargin(int m,int n)
+ 145          {
+ 146   1        SBUF=0x1c;Pause();SBUF=0x53;Pause();SBUF=m;Pause();SBUF=n;Pause();
+ 147   1        }//m:左边距 n:右边距 只对汉字有效
+ 148            void setBarHeight(int n) //default:n=50 n:10-240
+ 149          {
+ 150   1        SBUF=0x1d;Pause();SBUF=0x68;Pause();SBUF=n;Pause();
+ 151   1      }
+ 152          void setBarWidth(int n)//default:n=2 n:2-4
+ 153          {
+ 154   1        SBUF=0x1d;Pause();SBUF=0x77;Pause();SBUF=n;Pause();
+ 155   1      }
+ 156          void setBarLeft(int n)//设置单条形码左边距
+ 157          {
+ 158   1        SBUF=0x1d;Pause();SBUF=0x78;Pause();SBUF=n;Pause();
+ 159   1      }
+ 160          void signalBar(void)//code128
+ 161          {
+ 162   1          InitPrinter();setBarLeft(30);
+ 163   1          SBUF=0x1d;Pause();SBUF=0x6b;Pause();
+ 164   1          SBUF=73;Pause();SBUF=0x08;Pause();
+ 165   1          SBUF=0x31;Pause();SBUF=0x32;Pause();
+ 166   1          SBUF=0x33;Pause();SBUF=0x34;Pause();
+ 167   1          SBUF=0x35;Pause();SBUF=0x36;Pause();
+ 168   1          SBUF=0x37;Pause();SBUF=0x38;Pause();print();
+ 169   1      }
+ 170          void example1(void)
+ 171          {
+ 172   1        InitPrinter();
+ 173   1        setMode(1,1);
+ 174   1        strcpy(a,"  ShukeEnglish");printhz();print();
+ 175   1        InitPrinter();strcpy(a,"    Example of Weekly data");printhz();print();
+ 176   1        InitPrinter();print();
+ 177   1        
+C51 COMPILER V9.59.0.0   PRINTER                                                           10/26/2020 15:26:26 PAGE 4   
+
+ 178   1        InitPrinter();strcpy(a,"-----------STATISTICS----------");printhz();print();
+ 179   1        InitPrinter();strcpy(a,"                               ");printhz();print();
+ 180   1        InitPrinter();strcpy(a,"        |  WORDS  |  GRAMMAR  | ");printhz();print();
+ 181   1        InitPrinter();strcpy(a,"-------------------------------");printhz();print();
+ 182   1        InitPrinter();strcpy(a,"  10-20 |  15/15  |   18/20   |");printhz();print();
+ 183   1        InitPrinter();strcpy(a,"-------------------------------");printhz();print();
+ 184   1        InitPrinter();strcpy(a,"  10-21 |  14/15  |   15/20   |");printhz();print();
+ 185   1        InitPrinter();strcpy(a,"-------------------------------");printhz();print();
+ 186   1        InitPrinter();strcpy(a,"  10-22 |  15/15  |   17/20   |");printhz();print();
+ 187   1        InitPrinter();strcpy(a,"-------------------------------");printhz();print();
+ 188   1        InitPrinter();strcpy(a,"  10-23 |  15/15  |   20/20   |");printhz();print();
+ 189   1        InitPrinter();strcpy(a,"-------------------------------");printhz();print();
+ 190   1        InitPrinter();strcpy(a,"  10-24 |  10/15  |   15/20   |");printhz();print();
+ 191   1        InitPrinter();strcpy(a,"-------------------------------");printhz();print();
+ 192   1        InitPrinter();strcpy(a,"  10-25 |  12/15  |   14/20   |");printhz();print();
+ 193   1        InitPrinter();strcpy(a,"-------------------------------");printhz();print();
+ 194   1        InitPrinter();strcpy(a,"  10-26 |  14/15  |   19/20   |");printhz();print();
+ 195   1        InitPrinter();strcpy(a,"-------------------------------");printhz();print();
+ 196   1        InitPrinter();strcpy(a,"  TOTAL |  15/105 |   18/140  |");printhz();print();
+ 197   1        InitPrinter();strcpy(a,"-------------------------------");printhz();print();
+ 198   1        InitPrinter();strcpy(a,"              PRINT TIME: 10-26");printhz();print();
+ 199   1        print();print();
+ 200   1        
+ 201   1      /*
+ 202   1        setMode(1,1);
+ 203   1      //    strcpy(a," #0000");printhz(); //
+ 204   1          strcpy(a,"ShukeEnglish 学习周报");printhz();
+ 205   1          print();
+ 206   1      //    InitPrinter();setAlign(1);
+ 207   1      //    strcpy(a,"*餐馆名*");printhz();
+ 208   1      //    print();
+ 209   1          InitPrinter();print();
+ 210   1          strcpy(a,"-------------------------------");printhz();print();
+ 211   1          InitPrinter();
+ 212   1          strcpy(a,"下单时间: mm-dd mm-ss");printhz();print();  //
+ 213   1          InitPrinter();strcpy(a,"-------------------------------");printhz();print();
+ 214   1          InitPrinter();setMode(1,1);
+ 215   1          strcpy(a,"备注:3人用餐");printhz();print();  //
+ 216   1          InitPrinter();setMode(1,1);
+ 217   1          strcpy(a,"其他备注:下雨天外卖小哥注意安全 不着急");printhz();print();  //
+ 218   1          InitPrinter();
+ 219   1          strcpy(a,"********************************");printhz();print();
+ 220   1          InitPrinter();
+ 221   1          strcpy(a,"------------1号口袋------------");printhz();print();
+ 222   1          InitPrinter();setAlign(0);
+ 223   1          strcpy(a,"商品1          *1          价格1");printhz();print();  //
+ 224   1          InitPrinter();setAlign(0);
+ 225   1          strcpy(a,"商品2          *1          价格2");printhz();print();  //
+ 226   1          InitPrinter();
+ 227   1          strcpy(a,"-------------其他-------------");printhz();print();
+ 228   1          InitPrinter();
+ 229   1          strcpy(a,"餐盒费                     价格3");printhz();print();  //
+ 230   1          InitPrinter();
+ 231   1          strcpy(a,"配送费                     价格4");printhz();print();  //
+ 232   1          InitPrinter();
+ 233   1          strcpy(a,"[优惠 满20.0元减5.0元]      -5.0");printhz();print();  //
+ 234   1          InitPrinter();
+ 235   1          strcpy(a,"********************************");printhz();print();
+ 236   1          InitPrinter();setAlign(2);
+ 237   1          strcpy(a,"原价:价格5");printhz();print();  //
+ 238   1          InitPrinter();setAlign(2);setMode(1,1);
+ 239   1          strcpy(a,"现价:价格6");printhz();print();  //
+C51 COMPILER V9.59.0.0   PRINTER                                                           10/26/2020 15:26:26 PAGE 5   
+
+ 240   1          InitPrinter();setAlign(2);
+ 241   1          strcpy(a,"支付方式:线上支付");printhz();print();
+ 242   1          InitPrinter();strcpy(a,"-------------------------------");printhz();print();
+ 243   1          InitPrinter();
+ 244   1          strcpy(a,"地址:为保护顾客隐私，请在小程序骑手端查看详细地址");printhz();print();
+ 245   1          InitPrinter();setAlign(0);setMode(1,1);
+ 246   1          strcpy(a,"顾客:李先生");printhz();print();  //
+ 247   1          signalBar();
+ 248   1          InitPrinter();setAlign(1);setMode(1,1);
+ 249   1          strcpy(a,"祝您好胃口!");printhz();print();
+ 250   1          */
+ 251   1      }
+ 252          void beepdelay(unsigned int t)
+ 253          {
+ 254   1        unsigned char n; 
+ 255   1        for(;t>0;t--)
+ 256   1         for(n=0;n<125;n++)
+ 257   1         {;}
+ 258   1      }
+ 259          void beep_order()
+ 260          {
+ 261   1        unsigned long int i;
+ 262   1        for(i=0;i<1800;i++)
+ 263   1        {
+ 264   2          beepdelay(1);
+ 265   2          P37=0;
+ 266   2          beepdelay(1);
+ 267   2          P37=1;
+ 268   2        }
+ 269   1          P37=1;            //喇叭停止工作
+ 270   1          beepdelay(2000);
+ 271   1      }
+ 272          void beep(int n)
+ 273          {
+ 274   1        unsigned char i,j;
+ 275   1        for(j=1;j<=n;j++){
+ 276   2        for(i=0;i<200;i++)//喇叭发声的时间循环，改变大小可以改变发声时间长短
+ 277   2        {
+ 278   3          beepdelay(1);     //参数决定发声的频率
+ 279   3          P37=0;
+ 280   3          beepdelay(1);
+ 281   3          P37=1;
+ 282   3        }
+ 283   2          P37=1;            //喇叭停止工作
+ 284   2          beepdelay(2000);
+ 285   2      }
+ 286   1      }
+ 287          void SHOWSTATUS(void)
+ 288          {
+ 289   1        unsigned char rec3;
+ 290   1        if(rec==0x00) rec3=0x61;
+ 291   1        if(rec==0x04) rec3=0x62;
+ 292   1        if(rec==0x80) rec3=0x63;
+ 293   1        if(rec==0x84) rec3=0x64;
+ 294   1        S2BUF=rec3;
+ 295   1        while(1){
+ 296   2        //tranStatus();
+ 297   2        if(P05==0){while(P05==0){;}Delay50ms();cnt2++;cnt2%=2;}
+ 298   2        if(cnt2==0){TR0=1;return;}
+ 299   2        if(rec==0x04){//pape
+ 300   3          P00=1;P01=1;P02=1;P03=0;
+ 301   3          P2=0x86;Delay20us();P2=0xFF;
+C51 COMPILER V9.59.0.0   PRINTER                                                           10/26/2020 15:26:26 PAGE 6   
+
+ 302   3          P00=1;P01=1;P02=0;P03=1;
+ 303   3          P2=0x8c;Delay20us();P2=0xFF;
+ 304   3          P00=1;P01=0;P02=1;P03=1;
+ 305   3          P2=0xa0;Delay20us();P2=0xFF;
+ 306   3          P00=0;P01=1;P02=1;P03=1;
+ 307   3          P2=0x8c;Delay20us();P2=0xFF;
+ 308   3          
+ 309   3        }
+ 310   2        if(rec==0x00){//good
+ 311   3          P00=1;P01=1;P02=1;P03=0;
+ 312   3          P2=0xa1;Delay20us();P2=0xFF;
+ 313   3          P00=1;P01=1;P02=0;P03=1;
+ 314   3          P2=0xa3;Delay20us();P2=0xFF;
+ 315   3          P00=1;P01=0;P02=1;P03=1;
+ 316   3          P2=0xa3;Delay20us();P2=0xFF;
+ 317   3          P00=0;P01=1;P02=1;P03=1;
+ 318   3          P2=0x82;Delay20us();P2=0xFF;
+ 319   3        }
+ 320   2        if(rec==0x80){//hot
+ 321   3          P00=1;P01=1;P02=1;P03=0;
+ 322   3          P2=0x87;Delay20us();P2=0xFF;
+ 323   3          P00=1;P01=1;P02=0;P03=1;
+ 324   3          P2=0xa3;Delay20us();P2=0xFF;
+ 325   3          P00=1;P01=0;P02=1;P03=1;
+ 326   3          P2=0x8b;Delay20us();P2=0xFF;
+ 327   3          P00=0;P01=1;P02=1;P03=1;
+ 328   3          P2=0xFF;Delay20us();P2=0xFF;
+ 329   3        }
+ 330   2        if(rec==0x84){//ph
+ 331   3          P00=1;P01=1;P02=1;P03=0;
+ 332   3          P2=0x8b;Delay20us();P2=0xFF;
+ 333   3          P00=1;P01=1;P02=0;P03=1;
+ 334   3          P2=0xFF;Delay20us();P2=0xFF;
+ 335   3          P00=1;P01=0;P02=1;P03=1;
+ 336   3          P2=0x8c;Delay20us();P2=0xFF;
+ 337   3          P00=0;P01=1;P02=1;P03=1;
+ 338   3          P2=0xFF;Delay20us();P2=0xFF;
+ 339   3        }
+ 340   2      }
+ 341   1      }
+ 342          
+ 343          void main()
+ 344          {
+ 345   1        int i,t=0;
+ 346   1        cnt1=cnt2=cnt3=0;num=0;
+ 347   1        memset(numm,0,sizeof(numm));
+ 348   1        USART_Init();InitUart2();Init();InitPrinter();Timer0Init();
+ 349   1        IPH|=0x01;IP|=0x01;//串口1设为最高优先级（优先级3）
+ 350   1        IPH2|=0x01;IP2|=0x01;//串口2设为最高优先级（优先级3）
+ 351   1        while(1){
+ 352   2          if(P04==0){while(P04==0){;}Delay50ms();cnt1++;cnt1%=2;}//cnt1 输出样例
+ 353   2          if(P05==0){while(P05==0){;}Delay50ms();cnt2++;cnt2%=2;}//cnt2 查询状态
+ 354   2          if(cnt1==1&&!cnt2){ //输出样例
+ 355   3            InitPrinter();example1();
+ 356   3            cnt1++;cnt1%=2;
+ 357   3          }
+ 358   2          if(!cnt1&&cnt2==1){  //查询状态
+ 359   3            TR0=0;
+ 360   3            tranStatus();
+ 361   3            TR0=1;
+ 362   3          }
+ 363   2          if(numflag){
+C51 COMPILER V9.59.0.0   PRINTER                                                           10/26/2020 15:26:26 PAGE 7   
+
+ 364   3            num=0;numflag=0;
+ 365   3          for(i=0;i<4;i++){
+ 366   4            if(numm[i]==0x30) t=0;
+ 367   4            if(numm[i]==0x31) t=1;
+ 368   4            if(numm[i]==0x32) t=2;
+ 369   4            if(numm[i]==0x33) t=3;
+ 370   4            if(numm[i]==0x34) t=4;
+ 371   4            if(numm[i]==0x35) t=5;
+ 372   4            if(numm[i]==0x36) t=6;
+ 373   4            if(numm[i]==0x37) t=7;
+ 374   4            if(numm[i]==0x38) t=8;
+ 375   4            if(numm[i]==0x39) t=9;
+ 376   4            if(i==0) num+=t*1000;
+ 377   4            if(i==1) num+=t*100;
+ 378   4            if(i==2) num+=t*10;
+ 379   4            if(i==3) num+=t;
+ 380   4          }
+ 381   3        }
+ 382   2          //while(1){;}
+ 383   2        }
+ 384   1      }
+ 385          
+ 386          void Timer0() interrupt 1
+ 387          {
+ 388   1        if(P04==0){while(P04==0){;}Delay50ms();cnt1++;cnt1%=2;}//cnt1 输出样例
+ 389   1        if(P05==0){while(P05==0){;}Delay50ms();cnt2++;cnt2%=2;}//cnt2 查询状态
+ 390   1        TL0 = 0xAE;   //设置定时初值
+ 391   1        TH0 = 0xFB;   //设置定时初值
+ 392   1        P2=0xFF;
+ 393   1        tmp=num;
+ 394   1        if(cnt==0)
+ 395   1        {
+ 396   2          P00=1;P01=1;P02=1;P03=0;P2=nums[tmp%10];
+ 397   2        }
+ 398   1        if(cnt==1)
+ 399   1        {
+ 400   2          tmp/=10;
+ 401   2          P00=1;P01=1;P02=0;P03=1;P2=nums[tmp%10];
+ 402   2        }
+ 403   1        if(cnt==2)
+ 404   1        {
+ 405   2          tmp/=100;
+ 406   2          P00=1;P01=0;P02=1;P03=1;P2=nums[tmp%10];
+ 407   2        }
+ 408   1        if(cnt==3)
+ 409   1        {
+ 410   2          tmp/=1000;
+ 411   2          P00=0;P01=1;P02=1;P03=1;P2=nums[tmp];
+ 412   2        }
+ 413   1        cnt++;cnt%=4;
+ 414   1      }
+ 415          void USART_Interrupt(void)  interrupt 4
+ 416          {
+ 417   1        if(RI)
+ 418   1        {
+ 419   2          rec=SBUF;Delay50ms();RI=0;
+ 420   2          if(rec==0x80) beep(2);
+ 421   2          if(rec==0x00) beep(1);
+ 422   2          if(rec==0x04) beep(4);
+ 423   2          if(rec==0x84) beep(6);
+ 424   2          SHOWSTATUS();
+ 425   2        }
+C51 COMPILER V9.59.0.0   PRINTER                                                           10/26/2020 15:26:26 PAGE 8   
+
+ 426   1      }
+ 427          void USART2_Interrupt(void) interrupt 8
+ 428          {
+ 429   1        if(S2CON&0x01) //S2RI==1
+ 430   1        {
+ 431   2          S2CON&=~S2RI;//S2RI=0
+ 432   2          rec2 = S2BUF;
+ 433   2          if(rec2==0x01){
+ 434   3            cnt1++;cnt1%=2;
+ 435   3            SBUF=0x01;
+ 436   3          }
+ 437   2          else if(rec2==0x02){
+ 438   3            cnt2++;cnt2%=2;
+ 439   3          }
+ 440   2          else if(rec2==0x03){
+ 441   3            if(cnt3==1)
+ 442   3              numflag=1;
+ 443   3            cnt3++;cnt3%=2;len=0;
+ 444   3          }
+ 445   2          else if(rec2==0x04){
+ 446   3            beep_order();
+ 447   3            InitPrinter();
+ 448   3          }
+ 449   2          else{
+ 450   3            if(cnt3==0){
+ 451   4              SBUF=rec2;Pause();
+ 452   4            }
+ 453   3            else{
+ 454   4              numm[len]=rec2;len++;
+ 455   4            }
+ 456   3          }
+ 457   2        }
+ 458   1        else{
+ 459   2          S2CON&=~S2TI;
+ 460   2        }
+ 461   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   2969    ----
+   CONSTANT SIZE    =    459    ----
+   XDATA SIZE       =    152       8
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      2    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)

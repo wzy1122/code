@@ -1,0 +1,15 @@
+<!--miniprogram/pages/home.wxml-->
+<view class="icon_style">题目录入{{time}}</view>
+<view class="main_body">
+<view class="flex_class">
+  <input placeholder="单元编号" bindinput="input_unit" value="{{unit}}"></input>
+  <input placeholder="主题号" bindinput="input_main_index" value="{{main_index}}"></input>
+  <input placeholder="小题号" bindinput="input_extra_index" value="{{extra_index}}"></input>
+</view>
+  <textarea maxlength="-1" placeholder="题目描述" bindinput="input_description" value="{{description}}"></textarea>
+  <textarea maxlength="-1" placeholder="题干文本" bindinput="input_body" value="{{body}}"></textarea>
+  <textarea maxlength="-1" placeholder="答案文本" bindinput="input_answer" value="{{answer}}"></textarea>
+  <textarea maxlength="-1" placeholder="注释" bindinput="input_comment" value="{{comment}}"></textarea>
+  <button bindtap="_add">添加</button>
+  <button bindtap="_get">查询/删除记录</button>
+</view>
